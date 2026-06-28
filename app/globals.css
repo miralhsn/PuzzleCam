@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+* { box-sizing: border-box; }
+
+.pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border-width: 1px;
+  border-style: solid;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-weight: 500;
+}
