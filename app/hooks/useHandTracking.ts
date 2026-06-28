@@ -1,98 +1,94 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import type { HandLandmark } from '../types';
 
 type OnResultsCb = (landmarks: HandLandmark[][]) => void;
 
-interface UseHandTrackingOpts {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  enabled:  boolean;
+interface Opts {
+  videoRef:  React.RefObject<HTMLVideoElement | null>;
+  enabled:   boolean;
   onResults: OnResultsCb;
 }
 
-export function useHandTracking({ videoRef, enabled, onResults }: UseHandTrackingOpts) {
-  const handsRef   = useRef<any>(null);
-  const rafRef     = useRef<number>(0);
-  const runningRef = useRef(false);
-  const busyRef    = useRef(false); // prevent overlapping sends
-
-  const stop = useCallback(() => {
-    runningRef.current = false;
-    cancelAnimationFrame(rafRef.current);
-  }, []);
+export function useHandTracking({ videoRef, enabled, onResults }: Opts) {
+  const cbRef      = useRef<OnResultsCb>(onResults);
+  const enabledRef = useRef(enabled);
+  cbRef.current      = onResults;
+  enabledRef.current = enabled;
 
   useEffect(() => {
-    if (!enabled) { stop(); return; }
+    if (!enabled) return;
 
-    let mounted = true;
+    let mounted   = true;
+    let timerId   = 0;
+    let handsInst: any = null;
+    let busy      = false;
 
     async function init() {
-      // Poll until MediaPipe Hands is available from CDN <script>
+      // Wait for the locally-served hands.js to define window.Hands
       let attempts = 0;
-      while (typeof (window as any).Hands === 'undefined' && attempts < 150) {
+      while (typeof (window as any).Hands === 'undefined') {
+        if (!mounted) return;
+        if (attempts++ > 300) { console.error('[HandTracking] Hands never defined'); return; }
         await sleep(100);
-        attempts++;
       }
-      if (!mounted || typeof (window as any).Hands === 'undefined') {
-        console.error('[HandTracking] MediaPipe Hands not available after 15s');
-        return;
-      }
+      if (!mounted) return;
 
-      const Hands = (window as any).Hands;
-      const hands = new Hands({
-        locateFile: (f: string) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`,
+      handsInst = new (window as any).Hands({
+        // Point locateFile at our /public/mediapipe/ folder
+        locateFile: (file: string) => `/mediapipe/${file}`,
       });
 
-      hands.setOptions({
+      handsInst.setOptions({
         maxNumHands:            2,
         modelComplexity:        1,
         minDetectionConfidence: 0.7,
         minTrackingConfidence:  0.6,
       });
 
-      hands.onResults((res: any) => {
-        if (!mounted) return;
-        busyRef.current = false;
-        onResults((res.multiHandLandmarks as HandLandmark[][]) ?? []);
+      handsInst.onResults((res: any) => {
+        busy = false;
+        if (mounted && enabledRef.current) {
+          cbRef.current((res.multiHandLandmarks as HandLandmark[][]) ?? []);
+        }
       });
 
-      // Initialize the model (warms up WASM / WebGL)
-      await hands.initialize();
+      try {
+        await handsInst.initialize();
+      } catch (e) {
+        console.error('[HandTracking] initialize() failed:', e);
+        return;
+      }
       if (!mounted) return;
 
-      handsRef.current = hands;
-      runningRef.current = true;
-
-      // Drive MediaPipe with our own rAF loop so we control timing
-      // and don't fight with the mirror-canvas loop.
       function loop() {
-        if (!runningRef.current || !mounted) return;
-
+        if (!mounted) return;
         const video = videoRef.current;
-        // Only send if video has real frames and we're not already waiting
-        if (video && video.readyState === 4 && !busyRef.current) {
-          busyRef.current = true;
-          hands.send({ image: video }).catch(() => { busyRef.current = false; });
+        if (
+          enabledRef.current &&
+          video &&
+          video.readyState === 4 &&
+          video.videoWidth > 0 &&
+          !busy
+        ) {
+          busy = true;
+          handsInst.send({ image: video }).catch(() => { busy = false; });
         }
-
-        // ~30 fps for tracking (33 ms interval via rAF throttle)
-        rafRef.current = requestAnimationFrame(() => {
-          setTimeout(loop, 33);
-        });
+        timerId = window.setTimeout(loop, 33);
       }
       loop();
     }
 
     init();
+
     return () => {
       mounted = false;
-      stop();
+      clearTimeout(timerId);
+      handsInst?.close?.();
     };
-  }, [enabled, videoRef, stop, onResults]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // runs once — all live values accessed via refs
 }
 
-function sleep(ms: number) {
-  return new Promise<void>(r => setTimeout(r, ms));
-}
+function sleep(ms: number) { return new Promise<void>(r => setTimeout(r, ms)); }

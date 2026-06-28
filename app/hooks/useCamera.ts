@@ -6,7 +6,6 @@ export type CameraStatus = 'idle' | 'requesting' | 'active' | 'error';
 
 interface UseCameraReturn {
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  onVideoMounted: (el: HTMLVideoElement | null) => void;
   status: CameraStatus;
   error: string | null;
   startCamera: () => Promise<void>;
@@ -14,37 +13,10 @@ interface UseCameraReturn {
 }
 
 export function useCamera(): UseCameraReturn {
-  const videoRef         = useRef<HTMLVideoElement | null>(null);
-  const streamRef        = useRef<MediaStream | null>(null);
-  const pendingStreamRef = useRef<MediaStream | null>(null);
+  const videoRef  = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [status, setStatus] = useState<CameraStatus>('idle');
   const [error,  setError]  = useState<string | null>(null);
-
-  const attachStream = useCallback(async (stream: MediaStream, video: HTMLVideoElement) => {
-    pendingStreamRef.current = null;
-    video.srcObject = stream;
-
-    // Wait for metadata so videoWidth/Height are available before we start rendering
-    await new Promise<void>((resolve) => {
-      if (video.readyState >= 1) { resolve(); return; }
-      video.onloadedmetadata = () => resolve();
-    });
-
-    try {
-      await video.play();
-    } catch {
-      // Some browsers throw on the first play(); retry once
-      await new Promise(r => setTimeout(r, 150));
-      await video.play().catch(() => {});
-    }
-  }, []);
-
-  const onVideoMounted = useCallback((el: HTMLVideoElement | null) => {
-    videoRef.current = el;
-    if (el && pendingStreamRef.current) {
-      attachStream(pendingStreamRef.current, el);
-    }
-  }, [attachStream]);
 
   const startCamera = useCallback(async () => {
     setStatus('requesting');
@@ -57,18 +29,27 @@ export function useCamera(): UseCameraReturn {
       streamRef.current = stream;
 
       const video = videoRef.current;
-      if (video) {
-        await attachStream(stream, video);
-      } else {
-        pendingStreamRef.current = stream;
-      }
+      if (!video) throw new Error('Video element not mounted');
+
+      video.srcObject = stream;
+
+      // Wait for enough data to start rendering
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Video load timeout')), 10000);
+        video.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+      });
+
+      await video.play();
       setStatus('active');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown camera error';
+      const msg = e instanceof Error ? e.message : 'Camera error';
       setError(msg);
       setStatus('error');
     }
-  }, [attachStream]);
+  }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -79,5 +60,5 @@ export function useCamera(): UseCameraReturn {
 
   useEffect(() => () => { stopCamera(); }, [stopCamera]);
 
-  return { videoRef, onVideoMounted, status, error, startCamera, stopCamera };
+  return { videoRef, status, error, startCamera, stopCamera };
 }

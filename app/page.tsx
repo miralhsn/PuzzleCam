@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import Script from 'next/script';
 
@@ -15,17 +15,14 @@ export default function GameOrchestrator() {
   const [gridSize, setGridSize] = useState<GridSize>(4);
   const [captured, setCaptured] = useState<string>('');
 
-  const { videoRef, onVideoMounted, status, error, startCamera } = useCamera();
-
-  // Mount CameraView immediately so <video> is in DOM before we call startCamera
-  // We hide it with display:none until permission is granted
-  const [cameraViewMounted, setCameraViewMounted] = useState(false);
+  const { videoRef, status, error, startCamera } = useCamera();
 
   const handleAllow = useCallback(async () => {
-    setCameraViewMounted(true);
     setPhase('camera');
-    // Give React one tick to flush the DOM so <video> is mounted
-    await new Promise(r => setTimeout(r, 80));
+    // Wait two rAF ticks so React flushes + <video> mounts
+    await new Promise<void>(resolve =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
     await startCamera();
   }, [startCamera]);
 
@@ -41,46 +38,34 @@ export default function GameOrchestrator() {
 
   return (
     <>
-      <Script
-        src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"
-        strategy="afterInteractive"
-        crossOrigin="anonymous"
-      />
-      <Script
-        src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js"
-        strategy="afterInteractive"
-        crossOrigin="anonymous"
-      />
+      {/* Load MediaPipe from local /public/mediapipe/ — avoids CDN version mismatch */}
+      <Script src="/mediapipe/hands.js" strategy="afterInteractive" />
 
       <main style={{
-        width: '100%', minHeight: '100vh',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        background: '#000', overflow: 'hidden', position: 'relative',
+        width:'100%', minHeight:'100vh',
+        display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center',
+        background:'#000', overflow:'hidden', position:'relative',
       }}>
-        {/* Ambient blobs */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 30% 40%, rgba(0,60,30,.35) 0%, transparent 55%)' }} />
-          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 70% 60%, rgba(0,40,80,.25) 0%, transparent 55%)' }} />
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
+          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 30% 40%, rgba(0,60,30,.35) 0%, transparent 55%)' }}/>
+          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 70% 60%, rgba(0,40,80,.25) 0%, transparent 55%)' }}/>
         </div>
 
-        {/* Permission screen */}
         <AnimatePresence mode="wait">
           {phase === 'permission' && (
             <PermissionScreen key="perm" onAllow={handleAllow} error={error} />
           )}
         </AnimatePresence>
 
-        {/* Camera — mounted once, hidden when not active */}
-        {cameraViewMounted && (
+        {showCamera && (
           <div style={{
-            display: showCamera ? 'flex' : 'none',
-            flexDirection: 'column', alignItems: 'center',
-            gap: 48, position: 'relative', zIndex: 10,
+            display:'flex', flexDirection:'column',
+            alignItems:'center', gap:48,
+            position:'relative', zIndex:10,
           }}>
             <CameraView
               videoRef={videoRef}
-              onVideoMounted={onVideoMounted}
               cameraActive={showCamera}
               gridSize={gridSize}
               onGridChange={setGridSize}
@@ -89,7 +74,6 @@ export default function GameOrchestrator() {
           </div>
         )}
 
-        {/* Puzzle screen */}
         <AnimatePresence>
           {showPuzzle && (
             <PuzzleScreen
@@ -103,10 +87,10 @@ export default function GameOrchestrator() {
 
         {status === 'error' && error && (
           <div style={{
-            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(40,0,0,0.9)', border: '1px solid rgba(255,60,60,0.35)',
-            borderRadius: 12, padding: '10px 20px',
-            color: 'rgba(255,120,120,0.9)', fontSize: 13, zIndex: 999,
+            position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)',
+            background:'rgba(40,0,0,0.9)', border:'1px solid rgba(255,60,60,0.35)',
+            borderRadius:12, padding:'10px 20px',
+            color:'rgba(255,120,120,0.9)', fontSize:13, zIndex:999,
           }}>
             {error}
           </div>
