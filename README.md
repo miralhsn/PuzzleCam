@@ -1,36 +1,251 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+<br />
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+░█████╗░██╗    ██████╗░██╗░░░██╗███████╗███████╗██╗░░░░░███████╗
+██╔══██╗██║    ██╔══██╗██║░░░██║╚════██║╚════██║██║░░░░░██╔════╝
+███████║██║    ██████╔╝██║░░░██║░░███╔═╝░░███╔═╝██║░░░░░█████╗░░
+██╔══██║██║    ██╔═══╝░██║░░░██║██╔══╝░░██╔══╝░░██║░░░░░██╔══╝░░
+██║░░██║██║    ██║░░░░░╚██████╔╝███████╗███████╗███████╗███████╗
+╚═╝░░╚═╝╚═╝    ╚═╝░░░░░░╚═════╝░╚══════╝╚══════╝╚══════╝╚══════╝
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### **Turn your webcam into an AI-powered puzzle game - using only your hands.**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+<p align="center">
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚀 Live Demo
 
-## Learn More
+### https://puzzle-cam-navy.vercel.app/
 
-To learn more about Next.js, take a look at the following resources:
+</p>
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+<br />
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![MediaPipe](https://img.shields.io/badge/MediaPipe-0097A7?style=for-the-badge&logo=google&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-## Deploy on Vercel
+<br />
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+</div>
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## ✨ How It Works
+
+```
+📷 Webcam  →  🤖 AI Hand Tracking  →  🖼️ Frame Gesture  →  📸 Pinch Capture  →  🧩 Solve Puzzle
+```
+
+| Step | Action | Magic |
+|------|--------|-------|
+| 1 | Open the app | Camera starts automatically |
+| 2 | Raise both hands | AI detects all 21 landmarks per hand in real time |
+| 3 | Form a rectangle | Thumbs + index fingers define the frame corners |
+| 4 | Hold for 0.5s | Frame glows green — **Ready!** |
+| 5 | Pinch fingers | Camera flashes and captures the frame |
+| 6 | Drag the pieces | Solve the puzzle you just created |
+| 7 | 🎉 | Confetti and win screen |
+
+---
+
+## 🎯 Features
+
+- **Zero UI interaction needed** — entire capture flow is gesture-based
+- **Real-time hand tracking** at 30 FPS via MediaPipe Tasks Vision
+- **Smoothed frame detection** using an 8-frame moving average (no jitter)
+- **3×3, 4×4, or 5×5** puzzle grids
+- **Drag and drop** puzzle with snap animations via dnd-kit
+- **Hold to peek** — see the reference image while solving
+- **Download** your captured image
+- **Dark glassmorphism UI** — Apple × Linear × Vercel aesthetic
+- **Fully client-side** — no data ever leaves your device
+
+---
+
+## 🛠️ Tech Stack
+
+```
+Frontend       →  Next.js 16 · React 19 · TypeScript · Tailwind CSS 4
+Animations     →  Framer Motion 12
+Hand Tracking  →  @mediapipe/tasks-vision (HandLandmarker, VIDEO mode)
+Drag & Drop    →  @dnd-kit/core · @dnd-kit/sortable
+Rendering      →  HTML5 Canvas · requestAnimationFrame
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A webcam
+- A modern Chromium-based browser (Chrome / Edge)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/miralhsn/ai-puzzle-cam.git
+cd ai-puzzle-cam
+
+# Install dependencies
+npm install
+
+# Copy MediaPipe WASM files to public
+mkdir -p public/wasm
+cp node_modules/@mediapipe/tasks-vision/wasm/* public/wasm/
+
+# Start the development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and allow camera access.
+
+> **Note:** The hand tracking model (~25 MB) downloads from Google's CDN on first load and is cached by the browser for all subsequent visits.
+
+---
+
+## 📁 Project Structure
+
+```
+ai-puzzle-cam/
+├── app/
+│   ├── components/
+│   │   ├── camera/
+│   │   │   ├── CameraView.tsx        # Main camera + rAF render loop
+│   │   │   ├── CameraFlash.tsx       # Capture flash animation
+│   │   │   ├── FingerFrameOverlay.tsx # "Ready" badge animation
+│   │   │   └── HUD.tsx               # FPS, hand status, grid selector
+│   │   ├── puzzle/
+│   │   │   ├── PuzzleScreen.tsx      # Game state, timer, moves
+│   │   │   ├── PuzzleBoard.tsx       # dnd-kit sortable grid
+│   │   │   └── PuzzlePiece.tsx       # Individual draggable piece
+│   │   └── ui/
+│   │       ├── PermissionScreen.tsx  # Camera permission gate
+│   │       ├── WinModal.tsx          # Completion modal
+│   │       └── Confetti.tsx          # Canvas confetti burst
+│   ├── hooks/
+│   │   ├── useCamera.ts              # MediaStream lifecycle
+│   │   ├── useHandTracking.ts        # HandLandmarker singleton
+│   │   └── useGestureDetection.ts    # Frame rect + pinch logic
+│   ├── lib/
+│   │   ├── capture.ts                # Webcam frame capture
+│   │   ├── geometry.ts               # Canvas drawing utilities
+│   │   └── puzzle.ts                 # Puzzle generation + solver
+│   ├── utils/
+│   │   ├── math.ts                   # Timer formatting
+│   │   └── shuffle.ts                # Fisher-Yates shuffle
+│   └── types/
+│       └── index.ts                  # Shared TypeScript types
+└── public/
+    └── wasm/                         # MediaPipe WASM runtime (local)
+```
+
+---
+
+## 🏗️ Architecture
+
+The entire camera pipeline follows a single source of truth:
+
+```
+useCamera          →  One MediaStream, attached once, cleaned up correctly
+useHandTracking    →  One HandLandmarker instance (module-level singleton)
+useGestureDetection → Pure logic — no DOM, no canvas, no side effects
+CameraView         →  One requestAnimationFrame loop
+                       ├── drawImage(video) → canvas
+                       ├── detect(video, timestamp) → landmarks
+                       ├── drawHandSkeleton(ctx, landmarks)
+                       ├── process(landmarks, W, H) → gesture state
+                       └── drawFrameOverlay(ctx, rect, stable)
+```
+
+**Key design decisions:**
+
+- **Single rAF loop** — no competing timers or nested loops
+- **Refs over state** for all values read inside the rAF loop (avoids stale closures)
+- **Module-level MediaPipe singleton** — survives React 19 StrictMode double-invoke
+- **Native video rendering** — `<video>` renders itself, canvas only draws the overlay
+- **Local WASM** — MediaPipe runtime served from `/public/wasm/` for reliability
+
+---
+
+## 🎨 Gesture Detection
+
+```
+Both hands visible
+        ↓
+Thumb tip (landmark 4) + Index tip (landmark 8) × 2 hands = 4 points
+        ↓
+8-frame moving average smoothing
+        ↓
+Bounding rect from min/max of mirrored canvas coordinates
+        ↓
+Stability check: rect held for 500ms → glows green
+        ↓
+Pinch: distance(thumb, index) < 32px → capture (2s cooldown)
+```
+
+---
+
+## 📸 Capture Pipeline
+
+```
+Pinch detected
+      ↓
+captureFrame(video)         → drawImage with horizontal mirror
+      ↓
+createPuzzle(dataUrl, N)    → slice into N×N canvas tiles
+      ↓
+shuffleGuaranteed(pieces)   → Fisher-Yates (never identity permutation)
+      ↓
+PuzzleBoard renders         → dnd-kit sortable grid
+      ↓
+isSolved check after each move → confetti + win modal
+```
+
+---
+
+## 🔧 Configuration
+
+Change grid size via the selector below the camera (3×3, 4×4, 5×5).
+
+To adjust gesture sensitivity, edit `app/hooks/useGestureDetection.ts`:
+
+```ts
+const SMOOTH_WINDOW      = 8;    // frames to average (higher = smoother)
+const STABLE_MS          = 500;  // ms frame must be held before "Ready"
+const PINCH_THRESHOLD_PX = 32;   // pixels between thumb+index for pinch
+const PINCH_COOLDOWN_MS  = 2000; // cooldown between captures
+```
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome. For major changes, open an issue first.
+
+---
+
+## 📄 License
+
+MIT © [Miral Hasan](https://github.com/miralhsn)
+
+---
+
+<div align="center">
+
+**Built with 🤍 by [Miral Hasan](https://linkedin.com/in/miral-hasan-26353b249)**
+
+[GitHub](https://github.com/miralhsn) · [LinkedIn](https://linkedin.com/in/miral-hasan-26353b249)
+
+<br />
+
+*"The camera is your canvas. Your hands are the brush."*
+
+</div>
