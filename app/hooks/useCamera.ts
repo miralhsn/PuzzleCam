@@ -29,24 +29,17 @@ export function useCamera(): UseCameraReturn {
       streamRef.current = stream;
 
       const video = videoRef.current;
-      if (!video) throw new Error('Video element not mounted');
+      if (!video) throw new Error('Video element not in DOM');
 
       video.srcObject = stream;
-
-      // Wait for enough data to start rendering
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Video load timeout')), 10000);
-        video.onloadedmetadata = () => {
-          clearTimeout(timeout);
-          resolve();
-        };
+        const t = setTimeout(() => reject(new Error('Camera timeout')), 10_000);
+        video.onloadedmetadata = () => { clearTimeout(t); resolve(); };
       });
-
       await video.play();
       setStatus('active');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Camera error';
-      setError(msg);
+      setError(e instanceof Error ? e.message : 'Camera error');
       setStatus('error');
     }
   }, []);

@@ -1,11 +1,7 @@
-'use client';
-
 /**
- * Capture current webcam frame as a base64 JPEG.
- *
- * The <video> element itself is NOT CSS-transformed; the mirror
- * is done in a canvas in CameraView. So here we flip horizontally
- * so the captured photo looks like what the user sees on screen.
+ * Capture the current video frame as a mirrored JPEG.
+ * The video element uses CSS scaleX(-1) for display, so we mirror
+ * here too so the captured image matches what the user sees.
  */
 export function captureFrame(video: HTMLVideoElement): string {
   const W = video.videoWidth;
@@ -17,7 +13,7 @@ export function captureFrame(video: HTMLVideoElement): string {
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // Mirror to match on-screen appearance
+  // Mirror horizontally to match the CSS scaleX(-1) on the video
   ctx.translate(W, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, W, H);

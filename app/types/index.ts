@@ -1,10 +1,4 @@
-export type GamePhase =
-  | 'permission'
-  | 'camera'
-  | 'countdown'
-  | 'capturing'
-  | 'puzzle'
-  | 'complete';
+export type GamePhase = 'permission' | 'camera' | 'puzzle';
 
 export interface Point2D {
   x: number;
@@ -34,15 +28,9 @@ export interface PuzzlePiece {
   imageDataUrl: string;
 }
 
-export interface GameStats {
-  moves: number;
-  startTime: number;
-  elapsedSeconds: number;
-}
-
 export interface PuzzleState {
   pieces: PuzzlePiece[];
-  order: string[];       // piece ids in current grid order
+  order: string[];
   gridSize: GridSize;
-  capturedImage: string; // base64 data URL
+  capturedImage: string;
 }

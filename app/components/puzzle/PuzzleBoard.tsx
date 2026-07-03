@@ -68,16 +68,17 @@ export function PuzzleBoard({ state, onMove }: Props) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
 
-    setOrder(prev => {
-      const from = prev.indexOf(active.id as string);
-      const to   = prev.indexOf(over.id   as string);
-      const next = arrayMove(prev, from, to);
+    // Compute next order outside the state updater to avoid setState-during-render
+    const currentOrder = order;
+    const from = currentOrder.indexOf(active.id as string);
+    const to   = currentOrder.indexOf(over.id   as string);
+    if (from === -1 || to === -1) return;
+    const next = arrayMove(currentOrder, from, to);
+    setOrder(next);
 
-      // Check solved with updated state
-      const testState = { ...state, order: next };
-      onMove(next, isSolved(testState));
-      return next;
-    });
+    // Call onMove after the state update, not inside the updater
+    const testState = { ...state, order: next };
+    setTimeout(() => onMove(next, isSolved(testState)), 0);
   }, [state, onMove]);
 
   const activePiece = activeId ? pieceMap[activeId] : null;

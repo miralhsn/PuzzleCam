@@ -1,94 +1,109 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { HandLandmark } from '../types';
 
-type OnResultsCb = (landmarks: HandLandmark[][]) => void;
+export type HandResultsCb = (landmarks: HandLandmark[][]) => void;
+export type TrackingStatus = 'loading' | 'ready' | 'error';
 
-interface Opts {
-  videoRef:  React.RefObject<HTMLVideoElement | null>;
-  enabled:   boolean;
-  onResults: OnResultsCb;
-}
+const MODEL_URLS = [
+  'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/hand_landmarker.task',
+];
 
-export function useHandTracking({ videoRef, enabled, onResults }: Opts) {
-  const cbRef      = useRef<OnResultsCb>(onResults);
-  const enabledRef = useRef(enabled);
-  cbRef.current      = onResults;
-  enabledRef.current = enabled;
+// Module-level singleton — survives React StrictMode double-invoke
+// so MediaPipe is only ever initialised once per page load.
+let globalLandmarker: any = null;
+let globalInitPromise: Promise<any> | null = null;
 
-  useEffect(() => {
-    if (!enabled) return;
+async function getOrInitLandmarker(
+  onMsg: (msg: string) => void
+): Promise<any> {
+  if (globalLandmarker) return globalLandmarker;
+  if (globalInitPromise) return globalInitPromise;
 
-    let mounted   = true;
-    let timerId   = 0;
-    let handsInst: any = null;
-    let busy      = false;
+  globalInitPromise = (async () => {
+    onMsg('Importing vision library…');
+    const { HandLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
 
-    async function init() {
-      // Wait for the locally-served hands.js to define window.Hands
-      let attempts = 0;
-      while (typeof (window as any).Hands === 'undefined') {
-        if (!mounted) return;
-        if (attempts++ > 300) { console.error('[HandTracking] Hands never defined'); return; }
-        await sleep(100);
-      }
-      if (!mounted) return;
+    onMsg('Initializing WASM runtime…');
+    const fileset = await FilesetResolver.forVisionTasks('/wasm');
 
-      handsInst = new (window as any).Hands({
-        // Point locateFile at our /public/mediapipe/ folder
-        locateFile: (file: string) => `/mediapipe/${file}`,
-      });
-
-      handsInst.setOptions({
-        maxNumHands:            2,
-        modelComplexity:        1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence:  0.6,
-      });
-
-      handsInst.onResults((res: any) => {
-        busy = false;
-        if (mounted && enabledRef.current) {
-          cbRef.current((res.multiHandLandmarks as HandLandmark[][]) ?? []);
-        }
-      });
-
+    onMsg('Downloading hand model (~25 MB)…');
+    let modelBuffer: ArrayBuffer | null = null;
+    for (const url of MODEL_URLS) {
       try {
-        await handsInst.initialize();
-      } catch (e) {
-        console.error('[HandTracking] initialize() failed:', e);
-        return;
-      }
-      if (!mounted) return;
-
-      function loop() {
-        if (!mounted) return;
-        const video = videoRef.current;
-        if (
-          enabledRef.current &&
-          video &&
-          video.readyState === 4 &&
-          video.videoWidth > 0 &&
-          !busy
-        ) {
-          busy = true;
-          handsInst.send({ image: video }).catch(() => { busy = false; });
-        }
-        timerId = window.setTimeout(loop, 33);
-      }
-      loop();
+        const resp = await fetch(url);
+        if (resp.ok) { modelBuffer = await resp.arrayBuffer(); break; }
+      } catch { /* try next */ }
+    }
+    if (!modelBuffer || modelBuffer.byteLength < 1000) {
+      throw new Error('Failed to download hand model from all sources');
     }
 
-    init();
-
-    return () => {
-      mounted = false;
-      clearTimeout(timerId);
-      handsInst?.close?.();
+    onMsg('Creating hand landmarker…');
+    const opts = {
+      runningMode:                'VIDEO' as const,
+      numHands:                   2,
+      minHandDetectionConfidence: 0.6,
+      minHandPresenceConfidence:  0.6,
+      minTrackingConfidence:      0.5,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // runs once — all live values accessed via refs
+
+    let lm: any;
+    try {
+      lm = await HandLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetBuffer: new Uint8Array(modelBuffer), delegate: 'GPU' },
+        ...opts,
+      });
+    } catch {
+      lm = await HandLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetBuffer: new Uint8Array(modelBuffer), delegate: 'CPU' },
+        ...opts,
+      });
+    }
+
+    globalLandmarker = lm;
+    return lm;
+  })();
+
+  return globalInitPromise;
 }
 
-function sleep(ms: number) { return new Promise<void>(r => setTimeout(r, ms)); }
+export function useHandTracking(onResults: HandResultsCb) {
+  const cbRef     = useRef<HandResultsCb>(onResults);
+  cbRef.current   = onResults;
+  const readyRef  = useRef(false);
+  const [status,     setStatus]     = useState<TrackingStatus>('loading');
+  const [loadingMsg, setLoadingMsg] = useState('Starting…');
+
+  useEffect(() => {
+    let mounted = true;
+
+    getOrInitLandmarker((msg) => {
+      if (mounted) setLoadingMsg(msg);
+    }).then(() => {
+      if (mounted) { readyRef.current = true; setStatus('ready'); }
+    }).catch((e) => {
+      console.error('[HandLandmarker]', e);
+      if (mounted) {
+        setStatus('error');
+        setLoadingMsg(e instanceof Error ? e.message : 'Unknown error');
+      }
+    });
+
+    return () => { mounted = false; };
+  }, []);
+
+  function detect(video: HTMLVideoElement, timestampMs: number): void {
+    if (!readyRef.current || !globalLandmarker) return;
+    if (video.readyState < 4 || video.videoWidth === 0) return;
+    const results = globalLandmarker.detectForVideo(video, timestampMs);
+    const lms: HandLandmark[][] = (results.landmarks ?? []).map(
+      (hand: any[]) => hand.map((pt: any) => ({ x: pt.x, y: pt.y, z: pt.z ?? 0 }))
+    );
+    cbRef.current(lms);
+  }
+
+  return { detect, status, loadingMsg };
+}

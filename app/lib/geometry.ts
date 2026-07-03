@@ -1,6 +1,5 @@
 import type { FrameRect, HandLandmark } from '../types';
 
-// MediaPipe hand skeleton connections
 const CONNECTIONS: [number, number][] = [
   [0,1],[1,2],[2,3],[3,4],
   [0,5],[5,6],[6,7],[7,8],
@@ -9,85 +8,71 @@ const CONNECTIONS: [number, number][] = [
   [13,17],[0,17],[17,18],[18,19],[19,20],
 ];
 
-/** Draw skeleton + landmark dots for one hand */
 export function drawHandSkeleton(
   ctx: CanvasRenderingContext2D,
   landmarks: HandLandmark[],
-  width: number,
-  height: number
+  W: number,
+  H: number
 ): void {
-  // Mirror x for display
-  const px = (lm: HandLandmark) => [(1 - lm.x) * width, lm.y * height] as [number, number];
+  const px = (lm: HandLandmark): [number, number] => [(1 - lm.x) * W, lm.y * H];
 
-  // Skeleton lines
   ctx.save();
-  ctx.strokeStyle = 'rgba(0,220,100,0.35)';
+  ctx.strokeStyle = 'rgba(0,220,100,0.4)';
   ctx.lineWidth   = 1.5;
   ctx.lineCap     = 'round';
-  CONNECTIONS.forEach(([a, b]) => {
+
+  for (const [a, b] of CONNECTIONS) {
     const [ax, ay] = px(landmarks[a]);
     const [bx, by] = px(landmarks[b]);
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(bx, by);
     ctx.stroke();
-  });
+  }
 
-  // Dots
-  landmarks.forEach((lm, i) => {
-    const [x, y] = px(lm);
-    const isKey = i === 4 || i === 8;
+  for (let i = 0; i < landmarks.length; i++) {
+    const [x, y] = px(landmarks[i]);
+    const isKey  = i === 4 || i === 8;
     ctx.beginPath();
     ctx.arc(x, y, isKey ? 6 : 3, 0, Math.PI * 2);
-    ctx.fillStyle = isKey
-      ? 'rgba(0,255,120,0.9)'
-      : 'rgba(255,255,255,0.35)';
+    ctx.fillStyle = isKey ? 'rgba(0,255,120,0.9)' : 'rgba(255,255,255,0.35)';
     ctx.fill();
-  });
+  }
   ctx.restore();
 }
 
-/** Draw the animated corner-bracket frame overlay */
 export function drawFrameOverlay(
   ctx: CanvasRenderingContext2D,
   rect: FrameRect,
   ready: boolean,
-  animPhase: number   // 0..1 cycling value for pulse animation
+  animPhase: number
 ): void {
   const { x, y, w, h } = rect;
-  const cLen = Math.min(w, h) * 0.18;
+  const cLen  = Math.min(w, h) * 0.18;
   const alpha = ready ? 1 : 0.7 + Math.sin(animPhase * Math.PI * 2) * 0.3;
-  const color = ready
-    ? `rgba(0,220,100,${alpha})`
-    : `rgba(0,160,255,${alpha})`;
+  const color = ready ? `rgba(0,220,100,${alpha})` : `rgba(0,160,255,${alpha})`;
 
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth   = 3;
   ctx.lineCap     = 'round';
 
-  // Corner brackets
-  const brackets: [number, number, number, number][] = [
+  for (const [cx, cy, sx, sy] of [
     [x,     y,      1,  1],
     [x + w, y,     -1,  1],
     [x + w, y + h, -1, -1],
     [x,     y + h,  1, -1],
-  ];
-  brackets.forEach(([cx, cy, sx, sy]) => {
+  ] as [number, number, number, number][]) {
     ctx.beginPath();
     ctx.moveTo(cx + sx * cLen, cy);
     ctx.lineTo(cx, cy);
     ctx.lineTo(cx, cy + sy * cLen);
     ctx.stroke();
-  });
+  }
 
-  // Subtle fill tint
-  ctx.fillStyle = ready
-    ? 'rgba(0,220,100,0.05)'
-    : 'rgba(0,160,255,0.04)';
+  ctx.fillStyle = ready ? 'rgba(0,220,100,0.05)' : 'rgba(0,160,255,0.04)';
   ctx.fillRect(x, y, w, h);
 
-  // Glow border when ready
   if (ready) {
     ctx.strokeStyle = 'rgba(0,220,100,0.25)';
     ctx.lineWidth   = 1;

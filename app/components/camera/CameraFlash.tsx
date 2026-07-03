@@ -1,14 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface Props {
-  trigger: boolean;
-  onDone: () => void;
-}
-
-export function CameraFlash({ trigger, onDone }: Props) {
+export function CameraFlash({ trigger, onDone }: { trigger: boolean; onDone: () => void }) {
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
@@ -17,7 +12,7 @@ export function CameraFlash({ trigger, onDone }: Props) {
       {trigger && (
         <motion.div
           key="flash"
-          className="fixed inset-0 z-[200] pointer-events-none bg-white"
+          style={{ position: 'fixed', inset: 0, background: '#fff', pointerEvents: 'none', zIndex: 200 }}
           initial={{ opacity: 1 }}
           animate={{ opacity: 0 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
