@@ -1,6 +1,7 @@
 <div align="center">
 
 <br />
+<p>
 
 ```
 ░█████╗░██╗    ██████╗░██╗░░░██╗███████╗███████╗██╗░░░░░███████╗
@@ -10,14 +11,18 @@
 ██║░░██║██║    ██║░░░░░╚██████╔╝███████╗███████╗███████╗███████╗
 ╚═╝░░╚═╝╚═╝    ╚═╝░░░░░░╚═════╝░╚══════╝╚══════╝╚══════╝╚══════╝
 ```
-
+</p>
 ### **Turn your webcam into an AI-powered puzzle game - using only your hands.**
 
 <p align="center">
 
 ## 🚀 Live Demo
 
-### https://puzzle-cam-navy.vercel.app/
+**Try it here:**
+
+https://puzzle-cam-navy.vercel.app/
+
+> Allow camera permission and use two hands to create a frame.
 
 </p>
 
@@ -32,6 +37,12 @@
 <br />
 
 </div>
+
+---
+## 📸 Preview
+
+|-------------|-------------|
+| ![](docs/img1.png) | ![](docs/img2.png) |
 
 ---
 
@@ -53,9 +64,19 @@
 
 ---
 
+## ⚡ Performance
+
+- ~30 FPS hand tracking
+- Single requestAnimationFrame render loop
+- Zero unnecessary React re-renders during tracking
+- Canvas-based rendering for overlays
+- MediaPipe HandLandmarker initialized only once
+- Puzzle pieces generated once and rendered as image elements
+
+---
+
 ## 🎯 Features
 
-- **Zero UI interaction needed** — entire capture flow is gesture-based
 - **Real-time hand tracking** at 30 FPS via MediaPipe Tasks Vision
 - **Smoothed frame detection** using an 8-frame moving average (no jitter)
 - **3×3, 4×4, or 5×5** puzzle grids
@@ -91,8 +112,8 @@ Rendering      →  HTML5 Canvas · requestAnimationFrame
 
 ```bash
 # Clone the repository
-git clone https://github.com/miralhsn/ai-puzzle-cam.git
-cd ai-puzzle-cam
+git clone https://github.com/miralhsn/PuzzleCam.git
+cd PuzzleCam
 
 # Install dependencies
 npm install
@@ -107,14 +128,25 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and allow camera access.
 
-> **Note:** The hand tracking model (~25 MB) downloads from Google's CDN on first load and is cached by the browser for all subsequent visits.
+> **Note:** > The MediaPipe model is downloaded from Google's storage on first use, while the WebAssembly runtime is served locally from `/public/wasm` for improved reliability and faster startup.
+
+---
+## 🌍 Browser Support
+
+| Browser | Supported |
+|----------|-----------|
+| Chrome | ✅ |
+| Edge | ✅ |
+| Brave | ✅ |
+| Firefox | ⚠️ Limited |
+| Safari | ⚠️ Experimental |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-ai-puzzle-cam/
+PuzzleCam/
 ├── app/
 │   ├── components/
 │   │   ├── camera/
@@ -151,28 +183,33 @@ ai-puzzle-cam/
 
 ## 🏗️ Architecture
 
-The entire camera pipeline follows a single source of truth:
+## 🏗️ Architecture
 
+```text
+Camera
+   │
+   ▼
+MediaStream
+   │
+   ▼
+HandLandmarker
+   │
+   ▼
+Gesture Detection
+   │
+   ├────────────► Frame Detection
+   │
+   └────────────► Pinch Detection
+                     │
+                     ▼
+               Capture Image
+                     │
+                     ▼
+               Puzzle Generator
+                     │
+                     ▼
+              Drag & Drop Puzzle
 ```
-useCamera          →  One MediaStream, attached once, cleaned up correctly
-useHandTracking    →  One HandLandmarker instance (module-level singleton)
-useGestureDetection → Pure logic — no DOM, no canvas, no side effects
-CameraView         →  One requestAnimationFrame loop
-                       ├── drawImage(video) → canvas
-                       ├── detect(video, timestamp) → landmarks
-                       ├── drawHandSkeleton(ctx, landmarks)
-                       ├── process(landmarks, W, H) → gesture state
-                       └── drawFrameOverlay(ctx, rect, stable)
-```
-
-**Key design decisions:**
-
-- **Single rAF loop** — no competing timers or nested loops
-- **Refs over state** for all values read inside the rAF loop (avoids stale closures)
-- **Module-level MediaPipe singleton** — survives React 19 StrictMode double-invoke
-- **Native video rendering** — `<video>` renders itself, canvas only draws the overlay
-- **Local WASM** — MediaPipe runtime served from `/public/wasm/` for reliability
-
 ---
 
 ## 🎨 Gesture Detection
@@ -226,15 +263,42 @@ const PINCH_COOLDOWN_MS  = 2000; // cooldown between captures
 
 ---
 
-## 🤝 Contributing
+## 💡 Why I Built This
 
-Pull requests are welcome. For major changes, open an issue first.
+I wanted to explore gesture-driven interfaces beyond traditional button-based interactions.
+
+This project combines real-time computer vision, MediaPipe hand tracking, HTML5 Canvas rendering, and drag-and-drop interactions into a complete browser game where the user's hands become the primary input device.
+
+The goal was to build an experience that feels natural while maintaining high rendering performance and clean architecture.
 
 ---
 
-## 📄 License
+## ⚙️ Engineering Challenges
 
-MIT © [Miral Hasan](https://github.com/miralhsn)
+Some interesting engineering problems solved during development:
+
+- React 19 StrictMode causing duplicate MediaPipe initialization
+- Keeping rendering above 30 FPS while processing hand landmarks every frame
+- Eliminating gesture jitter using temporal smoothing
+- Synchronizing mirrored video with non-mirrored landmark coordinates
+- Preventing unnecessary React renders by keeping the animation loop outside React state
+- Building a stable gesture pipeline using requestAnimationFrame
+
+---
+
+## 🚀 Future Improvements
+
+- Multiplayer puzzle races
+- Difficulty modes
+- Gesture customization
+- Mobile optimization
+- Leaderboard
+- Timed challenge mode
+
+---
+## 🤝 Contributing
+
+Pull requests are welcome. For major changes, open an issue first.
 
 ---
 

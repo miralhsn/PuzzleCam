@@ -36,17 +36,11 @@ export default function App() {
 
   return (
     <main style={{
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#000',
-      overflow: 'hidden',
-      position: 'relative',
+      width: '100vw', height: '100vh',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: '#000', overflow: 'hidden', position: 'relative',
     }}>
-      {/* Ambient background */}
       <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 40%, rgba(0,60,30,.35) 0%, transparent 55%)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 70% 60%, rgba(0,40,80,.25) 0%, transparent 55%)' }} />
@@ -54,20 +48,22 @@ export default function App() {
 
       <AnimatePresence mode="wait">
         {phase === 'permission' && (
-          <PermissionScreen key="perm" onAllow={handleAllow} error={error} />
+          <PermissionScreen
+            key="perm"
+            onAllow={handleAllow}
+            error={error}
+            gridSize={gridSize}
+            onGridChange={setGridSize}
+          />
         )}
       </AnimatePresence>
 
       {showCamera && (
         <div style={{
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 40,
-          width: '100%',
-          padding: '0 16px',
+          position: 'relative', zIndex: 10,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 40,
+          width: '100%', padding: '0 16px',
         }}>
           <CameraView
             videoRef={videoRef}
